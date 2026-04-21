@@ -1,7 +1,7 @@
 {
   "name": "release-dashboard",
   "version": "1.0.0",
-  "scripts": {
-    "build": "echo 'No build step required'"
+  "dependencies": {
+    "@azure/storage-blob": "^12.17.0"
   }
 }
