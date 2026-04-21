@@ -2,39 +2,56 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Release Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-10" onload="fetchData()">
+<body class="bg-slate-50 min-h-screen p-4 md:p-10" onload="fetchData()">
 
-    <div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-lg">
-        <h1 class="text-3xl font-bold mb-6 text-gray-800">Release Explorer</h1>
-
-        <div id="loading" class="text-blue-600 font-bold mb-4">Loading data from Azure...</div>
-
-        <div id="controls" class="hidden flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-lg">
-            <div class="flex items-center gap-4">
-                <label class="font-bold text-gray-700">Release:</label>
-                <select id="releaseDropdown" onchange="renderTable()" class="border border-gray-300 rounded-lg p-2 bg-white"></select>
+    <div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-lg border border-slate-200">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-3xl font-extrabold text-slate-900">Release Explorer</h1>
+                <p class="text-slate-500 mt-1">Viewing folders from Azure Blob Storage</p>
             </div>
-            <button onclick="downloadCSV()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold">
-                Download CSV
+            <div id="statusBadge" class="px-4 py-2 rounded-full text-sm font-semibold bg-blue-50 text-blue-700 border border-blue-100">
+                Connecting to API...
+            </div>
+        </div>
+
+        <div id="controls" class="hidden flex flex-col md:flex-row items-center justify-between gap-6 mb-8 p-6 bg-slate-50 rounded-xl border border-slate-200">
+            <div class="flex items-center gap-4 w-full md:w-auto">
+                <label class="font-bold text-slate-700 whitespace-nowrap">Select Release Branch:</label>
+                <select id="releaseDropdown" onchange="renderTable()" class="w-full md:w-80 border border-slate-300 rounded-lg p-2.5 bg-white shadow-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                </select>
+            </div>
+            <button onclick="downloadCSV()" class="w-full md:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-2.5 rounded-lg font-bold transition-all shadow-md">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+                Download .csv
             </button>
         </div>
 
-        <div class="overflow-hidden border border-gray-200 rounded-xl">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-800 text-white">
+        <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+            <table class="min-w-full divide-y divide-slate-200">
+                <thead class="bg-slate-800">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Release</th>
-                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Repository</th>
-                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Team</th>
-                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Identity</th>
-                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Filename</th>
-                        <th class="px-6 py-3 text-center text-xs uppercase font-bold">Status</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-100 uppercase tracking-wider">Release</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-100 uppercase tracking-wider">Repository</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-100 uppercase tracking-wider">Team</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-100 uppercase tracking-wider">Identity</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-slate-100 uppercase tracking-wider">Filename</th>
+                        <th class="px-6 py-4 text-center text-xs font-bold text-slate-100 uppercase tracking-wider">Status</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                <tbody id="tableBody" class="bg-white divide-y divide-slate-200">
+                    <tr>
+                        <td colspan="6" class="px-6 py-12 text-center text-slate-400 italic">
+                            Waiting for data from API...
+                        </td>
+                    </tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -43,10 +60,19 @@
         let allData = [];
 
         async function fetchData() {
+            const badge = document.getElementById('statusBadge');
             try {
+                // SWA automatically routes /api requests to your Functions
                 const response = await fetch('/api/GetBlobs');
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Server Error');
+                }
+
                 const rawBlobs = await response.json();
                 
+                // Parse structure: Release/Repository/Team/Identity/Status/Filename
                 allData = rawBlobs.map(blob => {
                     const parts = blob.name.split('/');
                     return {
@@ -57,18 +83,33 @@
                         status:   parts[4] || 'N/A',
                         filename: parts[5] || 'N/A'
                     };
-                }).filter(item => item.filename !== 'N/A');
+                }).filter(item => item.filename !== 'N/A' && item.release.startsWith('Release-'));
 
-                document.getElementById('loading').classList.add('hidden');
+                if (allData.length === 0) {
+                    badge.innerText = "No release folders found";
+                    badge.className = "px-4 py-2 rounded-full text-sm font-semibold bg-amber-50 text-amber-700 border border-amber-100";
+                    return;
+                }
+
+                badge.innerText = `${allData.length} records loaded`;
+                badge.className = "px-4 py-2 rounded-full text-sm font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100";
+                
                 document.getElementById('controls').classList.remove('hidden');
                 populateDropdown();
             } catch (err) {
-                document.getElementById('loading').innerText = "Error loading data. Check API logs.";
+                console.error(err);
+                badge.innerText = "API Error - Check Logs";
+                badge.className = "px-4 py-2 rounded-full text-sm font-semibold bg-red-50 text-red-700 border border-red-100";
+                document.getElementById('tableBody').innerHTML = `
+                    <tr><td colspan="6" class="px-6 py-10 text-center text-red-500">
+                        <b>Error:</b> ${err.message}<br>
+                        Check if AZURE_STORAGE_SAS_URL is set in Portal Configuration.
+                    </td></tr>`;
             }
         }
 
         function populateDropdown() {
-            const releases = [...new Set(allData.map(item => item.release))].sort();
+            const releases = [...new Set(allData.map(item => item.release))].sort().reverse();
             const dropdown = document.getElementById('releaseDropdown');
             dropdown.innerHTML = releases.map(r => `<option value="${r}">${r}</option>`).join('');
             renderTable();
@@ -80,14 +121,14 @@
             const tbody = document.getElementById('tableBody');
 
             tbody.innerHTML = filtered.map(row => `
-                <tr>
-                    <td class="px-6 py-4 text-sm font-medium">${row.release}</td>
-                    <td class="px-6 py-4 text-sm text-gray-600">${row.repo}</td>
-                    <td class="px-6 py-4 text-sm text-gray-600">${row.team}</td>
-                    <td class="px-6 py-4 text-sm text-gray-600">${row.id}</td>
-                    <td class="px-6 py-4 text-sm font-mono text-blue-600">${row.filename}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="px-2 py-1 text-xs font-bold rounded-full ${row.status === 'PASSED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                <tr class="hover:bg-slate-50 transition-colors">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-900">${row.release}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.repo}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600">${row.team}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${row.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-600">${row.filename}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full ${row.status.toUpperCase() === 'PASSED' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
                             ${row.status}
                         </span>
                     </td>
@@ -98,13 +139,18 @@
         function downloadCSV() {
             const selected = document.getElementById('releaseDropdown').value;
             const filtered = allData.filter(item => item.release === selected);
-            const headers = "Release,Repository,Team,Identity,Filename,Status\n";
-            const rows = filtered.map(r => `${r.release},${r.repo},${r.team},${r.id},${r.filename},${r.status}`).join("\n");
             
+            const headers = ["Release", "Repository", "Team", "Identity", "Filename", "Status"];
+            const rows = filtered.map(r => [r.release, r.repo, r.team, r.id, r.filename, r.status].join(","));
+            
+            const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.join("\n");
+            const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
-            link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + headers + rows));
+            link.setAttribute("href", encodedUri);
             link.setAttribute("download", `${selected}.csv`);
+            document.body.appendChild(link);
             link.click();
+            document.body.removeChild(link);
         }
     </script>
 </body>
