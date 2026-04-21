@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Release Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-10" onload="fetchData()">
+
+    <div class="max-w-6xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+        <h1 class="text-3xl font-bold mb-6 text-gray-800">Release Explorer</h1>
+
+        <div id="loading" class="text-blue-600 font-bold mb-4">Loading data from Azure...</div>
+
+        <div id="controls" class="hidden flex justify-between items-center mb-6 p-4 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-4">
+                <label class="font-bold text-gray-700">Release:</label>
+                <select id="releaseDropdown" onchange="renderTable()" class="border border-gray-300 rounded-lg p-2 bg-white"></select>
+            </div>
+            <button onclick="downloadCSV()" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-bold">
+                Download CSV
+            </button>
+        </div>
+
+        <div class="overflow-hidden border border-gray-200 rounded-xl">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-800 text-white">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Release</th>
+                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Repository</th>
+                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Team</th>
+                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Identity</th>
+                        <th class="px-6 py-3 text-left text-xs uppercase font-bold">Filename</th>
+                        <th class="px-6 py-3 text-center text-xs uppercase font-bold">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody" class="bg-white divide-y divide-gray-200"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let allData = [];
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/GetBlobs');
+                const rawBlobs = await response.json();
+                
+                allData = rawBlobs.map(blob => {
+                    const parts = blob.name.split('/');
+                    return {
+                        release:  parts[0] || 'N/A',
+                        repo:     parts[1] || 'N/A',
+                        team:     parts[2] || 'N/A',
+                        id:       parts[3] || 'N/A',
+                        status:   parts[4] || 'N/A',
+                        filename: parts[5] || 'N/A'
+                    };
+                }).filter(item => item.filename !== 'N/A');
+
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('controls').classList.remove('hidden');
+                populateDropdown();
+            } catch (err) {
+                document.getElementById('loading').innerText = "Error loading data. Check API logs.";
+            }
+        }
+
+        function populateDropdown() {
+            const releases = [...new Set(allData.map(item => item.release))].sort();
+            const dropdown = document.getElementById('releaseDropdown');
+            dropdown.innerHTML = releases.map(r => `<option value="${r}">${r}</option>`).join('');
+            renderTable();
+        }
+
+        function renderTable() {
+            const selected = document.getElementById('releaseDropdown').value;
+            const filtered = allData.filter(item => item.release === selected);
+            const tbody = document.getElementById('tableBody');
+
+            tbody.innerHTML = filtered.map(row => `
+                <tr>
+                    <td class="px-6 py-4 text-sm font-medium">${row.release}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${row.repo}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${row.team}</td>
+                    <td class="px-6 py-4 text-sm text-gray-600">${row.id}</td>
+                    <td class="px-6 py-4 text-sm font-mono text-blue-600">${row.filename}</td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-2 py-1 text-xs font-bold rounded-full ${row.status === 'PASSED' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                            ${row.status}
+                        </span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function downloadCSV() {
+            const selected = document.getElementById('releaseDropdown').value;
+            const filtered = allData.filter(item => item.release === selected);
+            const headers = "Release,Repository,Team,Identity,Filename,Status\n";
+            const rows = filtered.map(r => `${r.release},${r.repo},${r.team},${r.id},${r.filename},${r.status}`).join("\n");
+            
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI("data:text/csv;charset=utf-8," + headers + rows));
+            link.setAttribute("download", `${selected}.csv`);
+            link.click();
+        }
+    </script>
+</body>
+</html>
