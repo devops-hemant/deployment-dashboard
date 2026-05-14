@@ -6,7 +6,7 @@ on:
     branches: "main"
 
 jobs:
-  greeting:
+  CLI_CHECKING:
     runs-on: ubuntu-latest
     container: 
       image: ghcr.io/devops-hemant/deployment:v0.0.2
@@ -17,9 +17,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-    - name: CLI checks
-      run: |
-        echo "checking Databricks cli version" && databricks --version 
-        echo "Azure cli version" && az --version
-        echo "dbsql version check" && dbsqlcli --help
-        echo "yq version check" && yq --version
+    - run: databricks --version 
+    - run: az --version
+    - run: dbsqlcli --help
+    - run: yq --version
