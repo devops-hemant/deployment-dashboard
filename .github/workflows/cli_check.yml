@@ -1,4 +1,5 @@
 name: cli checks
+run-name: CLI checks
 
 on:
   push:
