@@ -1,0 +1,20 @@
+name: cli checks
+
+on:
+  push:
+    branches: "main"
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    container: ghcr.io/devops-hemant/deployment:v0.0.1
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - name: CLI checks
+      run: |
+        echo "checking Databricks cli version" && databricks --version 
+        echo "Azure cli version" && az --version
+        echo "dbsql version check" && dbsqlcli --version
+        echo "yq version check" && yq --version
