@@ -7,7 +7,11 @@ on:
 jobs:
   greeting:
     runs-on: ubuntu-latest
-    container: ghcr.io/devops-hemant/deployment:v0.0.1
+    container: 
+      image: ghcr.io/devops-hemant/deployment:v0.0.1
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     permissions:
       issues: write
       pull-requests: write
