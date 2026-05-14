@@ -20,5 +20,5 @@ jobs:
       run: |
         echo "checking Databricks cli version" && databricks --version 
         echo "Azure cli version" && az --version
-        echo "dbsql version check" && dbsqlcli --version
+        echo "dbsql version check" && dbsqlcli --help
         echo "yq version check" && yq --version
