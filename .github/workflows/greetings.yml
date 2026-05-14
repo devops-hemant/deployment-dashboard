@@ -8,7 +8,7 @@ jobs:
   greeting:
     runs-on: ubuntu-latest
     container: 
-      image: ghcr.io/devops-hemant/deployment:v0.0.1
+      image: ghcr.io/devops-hemant/deployment:v0.0.2
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GHTOKEN }}
